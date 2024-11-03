@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Management Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.dark {
+            background-color: #333;
+            color: #f4f4f4;
+        }
+
+        header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            cursor: pointer;
+            background: #fff;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            color: #007bff;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: #e0e0e0;
+        }
+
+        main {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .metric {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            margin: 20px;
+            padding: 20px;
+            flex: 1 1 30%;
+            min-width: 300px;
+            transition: background-color 0.3s;
+            position: relative;
+        }
+
+        .metric.dark {
+            background: #444;
+        }
+
+        .weather-widget {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            background: #007bff;
+            color: white;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .controls label {
+            margin-right: 10px;
+        }
+
+        .alert {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .login-form {
+            display: none;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+        }
+
+        .export-buttons {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .export-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 0 10px;
+        }
+
+        .export-button:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 768px) {
+            .metrics {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .metric {
+                width: 100%;
+                margin: 10px 0;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Energy Management Dashboard</h1>
+        <button class="theme-toggle" id="toggleTheme">Toggle Dark Mode</button>
+        <button id="loginButton">Login</button>
+    </header>
+    <main id="mainContent" style="display:none;">
+        <div class="controls">
+            <label for="timeframe">Select Timeframe:</label>
+            <select id="timeframe">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+            </select>
+            <button id="updateChart">Update Chart</button>
+        </div>
+        <div class="export-buttons">
+            <button class="export-button" id="exportCSV">Export to CSV</button>
+            <button class="export-button" id="exportPDF">Export to PDF</button>
+            <button class="export-button" id="generateReport">Generate Report</button>
+        </div>
+        <div class="alert" id="alertMessage" style="display:none;"></div>
+        <section class="metrics">
+            <div class="metric">
+                <h2>Energy Generation</h2>
+                <canvas id="generationChart"></canvas>
+            </div>
+            <div class="metric">
+                <h2>Energy Consumption</h2>
+                <canvas id="consumptionChart"></canvas>
+            </div>
+            <div class="metric">
+                <h2>Weather Data</h2>
+                <div class="weather-widget">
+                    <p>Temperature: <span id="temperature">--°C</span></p>
+                    <p>Solar Irradiance: <span id="irradiance">-- W/m²</span></p>
+                    <p>Wind Speed: <span id="windSpeed">-- m/s</span></p>
+                </div>
+            </div>
+            <div class="metric">
+                <h2>Forecasting Insights</h2>
+                <canvas id="forecastChart"></canvas>
+            </div>
+            <div class="metric">
+                <h2>Additional Visualizations</h2>
+                <canvas id="additionalChart" style="max-height: 300px;"></canvas>
+                <p>This section can display further metrics, trends, or insights based on data analysis.</p>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2024 Energy Management System</p>
+    </footer>
+
+    <!-- Login Form -->
+    <div class="login-form" id="loginForm">
+        <h2>Login</h2>
+        <label for="username">Username:</label>
+        <input type="text" id="username" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" required><br><br>
+        <button id="submitLogin">Submit</button>
+        <button id="cancelLogin">Cancel</button>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // Sample data for charts
+        const generationData = {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Generation (kWh)',
+                data: [50, 60, 70, 80, 90, 100, 110],
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+            }]
+        };
+
+        const consumptionData = {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Consumption (kWh)',
+                data: [40, 50, 60, 70, 80, 90, 100],
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+            }]
+        };
+
+        const forecastData = {
+            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'],
+            datasets: [
+                {
+                    label: 'Predicted Generation (kWh)',
+                    data: [120, 130, 125, 140, 135],
+                    backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    borderWidth: 1,
+                },
+                {
+                    label: 'Predicted Consumption (kWh)',
+                    data: [100, 110, 115, 120, 125],
+                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1,
+                }
+            ]
+        };
+
+        const additionalData = {
+            labels: ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5'],
+            datasets: [{
+                label: 'Average Daily Generation (kWh)',
+                data: [1200, 1300, 1250, 1400, 1350],
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+            }]
+        };
+
+        // Initialize charts
+        const ctxGeneration = document.getElementById('generationChart').getContext('2d');
+        const generationChart = new Chart(ctxGeneration, {
+            type: 'line',
+            data: generationData,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        const ctxConsumption = document.getElementById('consumptionChart').getContext('2d');
+        const consumptionChart = new Chart(ctxConsumption, {
+            type: 'line',
+            data: consumptionData,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        const ctxForecast = document.getElementById('forecastChart').getContext('2d');
+        const forecastChart = new Chart(ctxForecast, {
+            type: 'bar',
+            data: forecastData,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let surplus = context.dataset.data[context.dataIndex] - forecastData.datasets[1].data[context.dataIndex];
+                                return context.dataset.label + ': ' + context.formattedValue + ' kWh' + (surplus >= 0 ? ' (Surplus)' : ' (Shortage)');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const ctxAdditional = document.getElementById('additionalChart').getContext('2d');
+        const additionalChart = new Chart(ctxAdditional, {
+            type: 'bar',
+            data: additionalData,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Simulated weather data
+        document.getElementById('temperature').innerText = "25°C";
+        document.getElementById('irradiance').innerText = "600 W/m²";
+        document.getElementById('windSpeed').innerText = "5 m/s";
+
+        // Function to simulate fetching live data
+        function fetchLiveData() {
+            console.log('Fetching live data...');
+            checkAlerts();
+        }
+
+        function checkAlerts() {
+            const currentGeneration = generationData.datasets[0].data.reduce((a, b) => a + b, 0);
+            const currentConsumption = consumptionData.datasets[0].data.reduce((a, b) => a + b, 0);
+            const alertMessage = document.getElementById('alertMessage');
+
+            if (currentConsumption > currentGeneration) {
+                alertMessage.style.display = 'block';
+                alertMessage.innerText = 'Alert: Energy demand exceeds generation capacity!';
+            } else {
+                alertMessage.style.display = 'none';
+            }
+
+            // Simulate maintenance notification
+            if (currentGeneration < 50) {
+                alertMessage.style.display = 'block';
+                alertMessage.innerText += ' Maintenance Needed: Generation below threshold!';
+            }
+        }
+
+        // Handle login
+        document.getElementById('loginButton').addEventListener('click', function() {
+            document.getElementById('loginForm').style.display = 'block';
+        });
+
+        document.getElementById('submitLogin').addEventListener('click', function() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            if (username === 'admin' && password === 'password') {
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('loginForm').style.display = 'none';
+            } else {
+                alert('Invalid credentials. Try again.');
+            }
+        });
+
+        document.getElementById('cancelLogin').addEventListener('click', function() {
+            document.getElementById('loginForm').style.display = 'none';
+        });
+
+        // Update chart based on selected timeframe
+        document.getElementById('updateChart').addEventListener('click', function() {
+            const timeframe = document.getElementById('timeframe').value;
+            console.log(Updating charts for the last ${timeframe} days...);
+            if (timeframe == "30") {
+                generationData.datasets[0].data = Array.from({length: 30}, () => Math.floor(Math.random() * 150));
+                consumptionData.datasets[0].data = Array.from({length: 30}, () => Math.floor(Math.random() * 150));
+                generationChart.update();
+                consumptionChart.update();
+            } else {
+                generationChart.update();
+                consumptionChart.update();
+            }
+            additionalChart.update();  // Update additional chart if needed
+        });
+
+        // Dark mode toggle
+        document.getElementById('toggleTheme').addEventListener('click', function() {
+            document.body.classList.toggle('dark');
+            document.querySelectorAll('.metric').forEach(metric => {
+                metric.classList.toggle('dark');
+            });
+        });
+
+        // Export to CSV
+        document.getElementById('exportCSV').addEventListener('click', function() {
+            const csvContent = "data:text/csv;charset=utf-8,"
+                + "Day,Generation (kWh),Consumption (kWh)\n"
+                + generationData.labels.map((label, index) => ${label},${generationData.datasets[0].data[index]},${consumptionData.datasets[0].data[index]}).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "energy_data.csv");
+            document.body.appendChild(link); // Required for FF
+
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Export to PDF
+        document.getElementById('exportPDF').addEventListener('click', function() {
+            const pdf = new jsPDF();
+            pdf.text("Energy Management Report", 10, 10);
+            pdf.text("Generated Data", 10, 20);
+            pdf.text(Total Generation: ${generationData.datasets[0].data.reduce((a, b) => a + b, 0)} kWh, 10, 30);
+            pdf.text(Total Consumption: ${consumptionData.datasets[0].data.reduce((a, b) => a + b, 0)} kWh, 10, 40);
+            pdf.save("energy_report.pdf");
+        });
+
+        // Generate Report
+        document.getElementById('generateReport').addEventListener('click', function() {
+            const report = `Energy Report\n\n
+            Period: Last 7 Days\n
+            Total Generation: ${generationData.datasets[0].data.reduce((a, b) => a + b, 0)} kWh\n
+            Total Consumption: ${consumptionData.datasets[0].data.reduce((a, b) => a + b, 0)} kWh\n`;
+
+            alert(report);
+        });
+
+        // Call the fetchLiveData function periodically (every 5 seconds)
+        setInterval(fetchLiveData, 5000);
+    </script>
+</body>
+</html>
